@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AURA</title>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1262773326718474" crossorigin="anonymous"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8fafc; overflow: hidden; }
+        .h-screen-safe { height: 100vh; height: 100dvh; }
+        .post-creator { position: sticky; top: 0; z-index: 40; }
+        .typing-indicator { display: inline-flex; gap: 4px; }
+        .typing-dot { width: 8px; height: 8px; background: #0ea5e9; border-radius: 50%; animation: bounce 1.4s infinite; }
+        .typing-dot:nth-child(1) { animation-delay: 0s; }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce { 0%, 80%, 100% { opacity: 0.3; } 40% { opacity: 1; } }
+        .star-btn { transition: all 0.3s ease; cursor: pointer; }
+        .star-btn.glowed { animation: starGlow 0.6s ease; }
+        @keyframes starGlow { 
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); color: #fbbf24; }
+            100% { transform: scale(1); color: #fbbf24; }
+        }
+        .msg-sent { background-color: #ef4444; }
+        .msg-delivered { background-color: #eab308; }
+        .msg-seen { background-color: #22c55e; }
+        .profile-modal { background: rgba(0,0,0,0.5); }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .slide-up { animation: slideUp 0.3s ease; }
+        .search-result-hover { transition: all 0.2s; }
+        .search-result-hover:hover { background: #f1f5f9; }
+        .ad-placeholder { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .unread-indicator { position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; background: #ef4444; border-radius: 50%; }
+        .notification-badge { position: fixed; top: 20px; right: 20px; background: #1e293b; color: white; padding: 12px 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 1000; animation: slideInRight 0.3s ease; }
+        @keyframes slideInRight { from { transform: translateX(400px); } to { transform: translateX(0); } }
+    </style>
+</head>
+<body>
+
+    <!-- AUTH SCREEN -->
+    <div id="auth-screen" class="fixed inset-0 bg-slate-900 z-50 flex items-center justify-center p-4">
+        <div class="w-full max-w-sm">
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-sky-500 rounded-2xl mx-auto mb-4 flex items-center justify-center text-white text-3xl font-bold">A</div>
+                <h1 class="text-3xl font-bold text-white mb-2">AURA</h1>
+                <p class="text-slate-400">Real-time Social Network</p>
+            </div>
+
+            <div id="login-form" class="bg-slate-800 rounded-2xl p-6 space-y-4">
+                <input type="text" id="login-credential" placeholder="Username, Email or Phone" class="w-full bg-slate-700 text-white rounded-lg px-4 py-3 outline-none focus:ring-2 ring-sky-400">
+                <input type="password" id="login-pass" placeholder="Password" class="w-full bg-slate-700 text-white rounded-lg px-4 py-3 outline-none focus:ring-2 ring-sky-400">
+                <button onclick="login()" class="w-full bg-sky-500 text-white font-bold py-3 rounded-lg hover:bg-sky-600 transition">Login</button>
+                <p class="text-center text-slate-400 text-sm cursor-pointer hover:text-sky-400" onclick="toggleForm()">Create Account</p>
+            </div>
+
+            <div id="signup-form" class="hidden bg-slate-800 rounded-2xl p-6 space-y-4">
+                <input type="text" id="signup-user" placeholder="Username" class="w-full bg-slate-700 text-white rounded-lg px-4 py-3 outline-none focus:ring-2 ring-sky-400">
+                <input type="email" id="signup-email" placeholder="Email (optional)" class="w-full bg-slate-700 text-white rounded-lg px-4 py-3 outline-none focus:ring-2 ring-sky-400">
+                <input type="tel" id="signup-phone" placeholder="Phone (optional)" class="w-full bg-slate-700 text-white rounded-lg px-4 py-3 outline-none focus:ring-2 ring-sky-400">
+                <input type="password" id="signup-pass" placeholder="Password" class="w-full bg-slate-700 text-white rounded-lg px-4 py-3 outline-none focus:ring-2 ring-sky-400">
+                <p class="text-xs text-slate-500">Note: Email or Phone required</p>
+                <button onclick="signup()" class="w-full gradient-border text-white font-bold py-3 rounded-lg">Create Account</button>
+                <p class="text-center text-slate-400 text-sm cursor-pointer hover:text-sky-400" onclick="toggleForm()">Back to Login</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="app-screen" class="hidden h-screen-safe flex flex-col md:flex-row">
+        
+        <!-- SIDEBAR -->
+        <div class="md:w-72 bg-white border-r border-slate-200 flex md:flex-col justify-between md:justify-start p-4 md:p-6 order-last md:order-first">
+            <div class="hidden md:flex items-center gap-3 mb-8">
+                <div class="w-10 h-10 bg-sky-500 text-white rounded-lg flex items-center justify-center font-bold">A</div>
+                <h2 class="text-xl font-bold">AURA</h2>
+            </div>
+
+            <nav class="flex md:flex-col gap-2">
+                <button onclick="switchTab('feed')" class="nav-btn active px-4 py-2 md:py-3 rounded-lg md:rounded-xl text-sm md:text-base font-medium transition hover:bg-slate-100" data-tab="feed">
+                    <span class="hidden md:inline">📰 Feed</span>
+                    <span class="md:hidden">🏠</span>
+                </button>
+                <button onclick="switchTab('messages')" class="nav-btn px-4 py-2 md:py-3 rounded-lg md:rounded-xl text-sm md:text-base font-medium transition hover:bg-slate-100 relative" data-tab="messages">
+                    <span class="hidden md:inline">💬 Messages</span>
+                    <span class="md:hidden">💬</span>
+                    <span id="unread-badge" class="unread-indicator hidden"></span>
+                </button>
+                <button onclick="switchTab('discover')" class="nav-btn px-4 py-2 md:py-3 rounded-lg md:rounded-xl text-sm md:text-base font-medium transition hover:bg-slate-100" data-tab="discover">
+                    <span class="hidden md:inline">🔥 Discover</span>
+                    <span class="md:hidden">🔥</span>
+                </button>
+                <button onclick="switchTab('profile')" class="nav-btn px-4 py-2 md:py-3 rounded-lg md:rounded-xl text-sm md:text-base font-medium transition hover:bg-slate-100" data-tab="profile">
+                    <span class="hidden md:inline">👤 Profile</span>
+                    <span class="md:hidden">👤</span>
+                </button>
+            </nav>
+
+            <div class="flex flex-col gap-2 md:mt-auto md:pt-8">
+                <button onclick="logout()" class="px-4 py-2 bg-red-50 text-red-600 font-bold rounded-lg hover:bg-red-100 transition text-sm md:text-base">Logout</button>
+            </div>
+        </div>
+
+        <!-- CONTENT AREA -->
+        <div class="flex-1 overflow-hidden flex flex-col">
+            <div class="md:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between">
+                <h1 class="text-xl font-bold">AURA</h1>
+                <span id="header-user" class="text-lg">🔄</span>
+            </div>
+
+            <!-- FEED TAB -->
+            <div id="tab-feed" class="tab-content active flex-1 overflow-hidden flex flex-col">
+                <div class="post-creator bg-white border-b border-slate-200 p-4 md:p-6 shadow-sm space-y-4">
+                    <!-- Search with discovery -->
+                    <div class="relative">
+                        <div class="flex gap-2">
+                            <input type="text" id="search-users" placeholder="Search users..." class="flex-1 px-4 py-2 bg-slate-100 rounded-lg border-none outline-none focus:ring-2 ring-sky-400 text-sm">
+                            <button onclick="loadDiscoverUsers()" class="px-4 py-2 bg-sky-500 text-white rounded-lg font-bold hover:bg-sky-600">🔥 Discover</button>
+                        </div>
+                        <div id="search-suggestions" class="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg hidden max-h-40 overflow-y-auto z-30"></div>
+                    </div>
+
+                    <!-- Post creator -->
+                    <textarea id="post-text" placeholder="What's on your mind?" class="w-full bg-slate-50 rounded-lg px-4 py-3 border border-slate-200 resize-none focus:outline-none focus:ring-2 ring-sky-400" rows="3"></textarea>
+                    <div id="img-preview" class="mt-2 rounded-lg overflow-hidden max-h-40"></div>
+                    <div class="flex gap-2">
+                        <button onclick="document.getElementById('post-img').click()" class="px-4 py-2 bg-slate-100 rounded-lg text-sm font-medium hover:bg-slate-200">📷 Photo</button>
+                        <button onclick="createPost()" class="flex-1 px-4 py-2 bg-sky-500 text-white rounded-lg text-sm font-bold hover:bg-sky-600">✨ Radiate</button>
+                    </div>
+                    <input type="file" id="post-img" class="hidden" accept="image/*" onchange="previewImage()">
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-4 md:p-8 space-y-4">
+                    <div id="posts-list" class="space-y-4">
+                        <div class="text-center text-slate-400 py-8">Loading posts...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MESSAGES TAB -->
+            <div id="tab-messages" class="tab-content hidden flex-1 overflow-hidden flex">
+                <div class="w-full md:w-80 border-r border-slate-200 bg-white flex flex-col">
+                    <div class="p-4 border-b border-slate-200">
+                        <input type="text" id="search-input" placeholder="Search users..." class="w-full px-4 py-2 bg-slate-100 rounded-lg border-none outline-none focus:ring-2 ring-sky-400">
+                    </div>
+                    <div id="contacts-list" class="flex-1 overflow-y-auto space-y-1 p-2">
+                        <div class="text-center text-slate-400 py-4 text-sm">Loading users...</div>
+                    </div>
+                </div>
+
+                <div class="flex-1 hidden md:flex flex-col bg-slate-50">
+                    <div id="chat-placeholder" class="flex-1 flex items-center justify-center text-slate-400 text-center">
+                        <div><p class="text-2xl mb-2">💬</p><p class="font-medium">Select a user to chat</p></div>
+                    </div>
+
+                    <div id="chat-active" class="hidden flex flex-col h-full">
+                        <div class="bg-white border-b border-slate-200 p-4 flex items-center gap-3 justify-between">
+                            <div class="flex items-center gap-3 cursor-pointer" onclick="viewUserProfile(selectedChatUserId)">
+                                <div id="chat-avatar" class="w-10 h-10 bg-sky-200 rounded-lg flex items-center justify-center font-bold text-sky-600 text-sm"></div>
+                                <div>
+                                    <h3 id="chat-user-name" class="font-bold">User</h3>
+                                    <p id="chat-user-status" class="text-xs text-green-600">Online</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="startAudioCall()" class="px-3 py-2 bg-sky-100 text-sky-600 rounded-lg text-sm font-medium hover:bg-sky-200">🎤</button>
+                                <button onclick="startVideoCall()" class="px-3 py-2 bg-sky-100 text-sky-600 rounded-lg text-sm font-medium hover:bg-sky-200">📹</button>
+                            </div>
+                        </div>
+                        <div id="messages-box" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
+                        <div id="typing-status" class="px-4 h-6"></div>
+                        <div class="bg-white border-t border-slate-200 p-4 flex gap-2">
+                            <button onclick="document.getElementById('msg-img').click()" class="px-3 py-2 bg-slate-200 rounded-lg hover:bg-slate-300">📷</button>
+                            <input type="text" id="msg-input" placeholder="Type message..." class="flex-1 px-4 py-2 bg-slate-100 rounded-lg border-none outline-none focus:ring-2 ring-sky-400" onkeypress="if(event.key==='Enter')sendMessage()" oninput="handleTyping()">
+                            <button onclick="sendMessage()" class="px-4 py-2 bg-sky-500 text-white rounded-lg font-bold hover:bg-sky-600">Send</button>
+                        </div>
+                        <input type="file" id="msg-img" class="hidden" accept="image/*" onchange="sendImageMessage()">
+                    </div>
+                </div>
+
+                <div id="mobile-chat" class="hidden md:hidden fixed inset-0 bg-white z-40 flex flex-col slide-up">
+                    <div class="bg-white border-b border-slate-200 p-4 flex items-center gap-3">
+                        <button onclick="closeMobileChat()" class="text-xl">←</button>
+                        <div class="flex-1">
+                            <h3 id="mobile-chat-name" class="font-bold">User</h3>
+                            <p class="text-xs text-green-600">Online</p>
+                        </div>
+                    </div>
+                    <div id="mobile-messages-box" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
+                    <div id="mobile-typing-status" class="px-4 h-6"></div>
+                    <div class="bg-white border-t border-slate-200 p-4 flex gap-2">
+                        <button onclick="document.getElementById('mobile-msg-img').click()" class="px-3 py-2 bg-slate-200 rounded-lg hover:bg-slate-300">📷</button>
+                        <input type="text" id="mobile-msg-input" placeholder="Type message..." class="flex-1 px-4 py-2 bg-slate-100 rounded-lg border-none outline-none focus:ring-2 ring-sky-400" onkeypress="if(event.key==='Enter')sendMobileMessage()" oninput="handleMobileTyping()">
+                        <button onclick="sendMobileMessage()" class="px-4 py-2 bg-sky-500 text-white rounded-lg font-bold hover:bg-sky-600">Send</button>
+                    </div>
+                    <input type="file" id="mobile-msg-img" class="hidden" accept="image/*" onchange="sendMobileImageMessage()">
+                </div>
+            </div>
+
+            <!-- DISCOVER TAB -->
+            <div id="tab-discover" class="tab-content hidden flex-1 overflow-y-auto p-4 md:p-8">
+                <h2 class="text-2xl font-bold mb-6">🔥 Discover Users</h2>
+                <div id="discover-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div class="text-center text-slate-400 py-8">Loading users...</div>
+                </div>
+            </div>
+
+            <!-- PROFILE TAB -->
+            <div id="tab-profile" class="tab-content hidden flex-1 overflow-y-auto p-4 md:p-8">
+                <div class="max-w-2xl">
+                    <div class="bg-white rounded-xl md:rounded-2xl p-6 md:p-8 text-center mb-6 shadow-sm">
+                        <input type="file" id="avatar-upload" class="hidden" accept="image/*" onchange="uploadAvatar()">
+                        <div class="w-20 h-20 bg-gradient-to-br from-sky-400 to-indigo-500 rounded-full mx-auto mb-4 cursor-pointer hover:opacity-80 flex items-center justify-center text-white text-2xl font-bold overflow-hidden" onclick="document.getElementById('avatar-upload').click()" id="profile-avatar-display">A</div>
+                        <h2 id="profile-name" class="text-2xl font-bold mb-2">User</h2>
+                        <div class="flex items-center gap-2 justify-center mb-4">
+                            <textarea id="profile-bio-edit" placeholder="Add your bio..." class="flex-1 bg-slate-100 px-3 py-2 rounded-lg border-none outline-none focus:ring-2 ring-sky-400 resize-none" rows="2"></textarea>
+                            <button onclick="saveBio()" class="px-4 py-2 bg-sky-500 text-white rounded-lg font-bold hover:bg-sky-600">Save</button>
+                        </div>
+                        <div class="flex justify-center gap-8 border-t border-slate-200 pt-4">
+                            <div>
+                                <p class="text-2xl font-bold" id="profile-posts">0</p>
+                                <p class="text-xs text-slate-500">Posts</p>
+                            </div>
+                            <div>
+                                <p class="text-2xl font-bold" id="profile-followers">0</p>
+                                <p class="text-xs text-slate-500">Followers</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="profile-posts-list" class="space-y-4"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- USER PROFILE MODAL -->
+    <div id="profile-modal" class="hidden fixed inset-0 z-[100] flex items-end md:items-center justify-center p-4 profile-modal" onclick="if(event.target===this) closeProfileModal()">
+        <div class="bg-white rounded-t-2xl md:rounded-2xl w-full md:max-w-2xl max-h-[90vh] overflow-y-auto slide-up">
+            <div class="p-6 border-b border-slate-200 flex items-center justify-between sticky top-0 bg-white">
+                <h2 class="text-xl font-bold">User Profile</h2>
+                <button onclick="closeProfileModal()" class="text-2xl">✕</button>
+            </div>
+            <div class="p-6">
+                <div class="text-center mb-6">
+                    <div id="modal-avatar" class="w-24 h-24 bg-gradient-to-br from-sky-400 to-indigo-500 rounded-full mx-auto mb-4 flex items-center justify-center text-white text-3xl font-bold overflow-hidden">A</div>
+                    <h3 id="modal-user-name" class="text-2xl font-bold mb-2">User</h3>
+                    <p id="modal-user-bio" class="text-slate-600 mb-4">Bio</p>
+                    <div class="flex justify-center gap-8 mb-4">
+                        <div>
+                            <p class="text-xl font-bold" id="modal-posts">0</p>
+                            <p class="text-xs text-slate-500">Posts</p>
+                        </div>
+                        <div>
+                            <p class="text-xl font-bold" id="modal-followers">0</p>
+                            <p class="text-xs text-slate-500">Followers</p>
+                        </div>
+                    </div>
+                    <button id="modal-auraplus-btn" onclick="toggleAuraPlus()" class="px-6 py-2 bg-sky-500 text-white rounded-lg font-bold hover:bg-sky-600">AURA+</button>
+                </div>
+                <div id="modal-posts-list" class="space-y-4">
+                    <div class="text-center text-slate-400">Loading posts...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- COMMENT MODAL -->
+    <div id="comment-modal" class="hidden fixed inset-0 z-50 flex items-end md:items-center justify-center p-4 profile-modal" onclick="if(event.target===this) closeCommentModal()">
+        <div class="bg-white rounded-t-2xl md:rounded-2xl w-full md:max-w-md slide-up">
+            <div class="p-6 border-b border-slate-200 flex items-center justify-between">
+                <h2 class="text-lg font-bold">Add Your Opinion</h2>
+                <button onclick="closeCommentModal()" class="text-2xl">✕</button>
+            </div>
+            <div class="p-6 space-y-4">
+                <textarea id="comment-text" placeholder="Share your thoughts..." class="w-full bg-slate-100 px-4 py-3 rounded-lg border border-slate-200 resize-none focus:outline-none focus:ring-2 ring-sky-400" rows="4"></textarea>
+                <button onclick="submitComment()" class="w-full bg-sky-500 text-white font-bold py-3 rounded-lg hover:bg-sky-600">Post Opinion</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CALL OVERLAY -->
+    <div id="call-overlay" class="hidden fixed inset-0 bg-black/90 z-[2000] flex items-center justify-center p-4">
+        <div class="w-full max-w-2xl">
+            <div class="bg-slate-800 rounded-2xl overflow-hidden flex flex-col">
+                <div class="relative bg-black aspect-video flex items-center justify-center">
+                    <video id="remote-video" class="w-full h-full object-cover" autoplay playsinline></video>
+                    <div class="absolute bottom-4 right-4 w-32 aspect-video bg-slate-900 rounded-lg overflow-hidden border-2 border-white">
+                        <video id="local-video" class="w-full h-full object-cover" autoplay muted playsinline></video>
+                    </div>
+                </div>
+                <div class="bg-slate-900 p-6 flex justify-center gap-4">
+                    <button onclick="toggleMute()" class="w-14 h-14 bg-slate-700 text-white rounded-full flex items-center justify-center hover:bg-slate-600 text-2xl">🎤</button>
+                    <button onclick="endCall()" class="w-14 h-14 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 text-2xl">📞</button>
+                    <button onclick="toggleVideo()" class="w-14 h-14 bg-slate-700 text-white rounded-full flex items-center justify-center hover:bg-slate-600 text-2xl">📹</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let currentUser = null;
+        let currentUserId = null;
+        let currentToken = null;
+        let allPosts = [];
+        let allUsers = [];
+        let allMessages = [];
+        let selectedChatUserId = null;
+        let postImgData = null;
+        let localStream = null;
+        let peerConnection = null;
+        let typingTimeout = null;
+        let currentCommentPostId = null;
+        let viewingUserId = null;
+
+        function downloadImage(dataUrl, filename) {
+            const link = document.createElement('a');
+            link.href = dataUrl;
+            link.download = filename || 'image.jpg';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function showNotification(message) {
+            const notif = document.createElement('div');
+            notif.className = 'notification-badge';
+            notif.innerHTML = `<div class="flex items-center gap-2">${message}</div>`;
+            document.body.appendChild(notif);
+            setTimeout(() => notif.remove(), 3000);
+        }
+
+        function getLastMessage(userId) {
+            const msgs = allMessages.filter(m => 
+                (m.fromId === userId && m.toId === currentUserId) || 
+                (m.fromId === currentUserId && m.toId === userId)
+            );
+            return msgs.length > 0 ? msgs[msgs.length - 1] : null;
+        }
+
+        function hasUnreadMessages(userId) {
+            return allMessages.some(m => 
+                m.fromId === userId && m.toId === currentUserId && m.read === 0
+            );
+        }
+
+        // ============ SOCKET EVENTS ============
+        socket.on('connect', () => console.log('✅ Connected'));
+
+        socket.on('load-posts', (posts) => {
+            allPosts = posts || [];
+            renderFeed();
+        });
+
+        socket.on('new-post', (post) => {
+            allPosts.unshift(post);
+            renderFeed();
+        });
+
+        socket.on('post-deleted', (postId) => {
+            allPosts = allPosts.filter(p => p.id !== postId);
+            renderFeed();
+        });
+
+        socket.on('load-users', (users) => {
+            allUsers = users || [];
+            renderContacts();
+            renderDiscover();
+        });
+
+        socket.on('users-updated', () => {
+            socket.emit('auth', { token: currentToken });
+        });
+
+        socket.on('load-messages', (messages) => {
+            allMessages = messages || [];
+            if(selectedChatUserId) renderChat();
+            updateContactsList();
+            updateUnreadBadge();
+        });
+
+        socket.on('message-received', (msg) => {
+            allMessages.push(msg);
+            if(selectedChatUserId && (msg.from === selectedChatUserId || msg.fromId === selectedChatUserId)) {
+                socket.emit('message-delivered', msg._id || msg.id);
+                renderChat();
+            }
+            updateContactsList();
+            updateUnreadBadge();
+        });
+
+        socket.on('notification', (notif) => {
+            showNotification(`🔔 ${notif.message}`);
+        });
+
+        socket.on('user-typing', (data) => {
+            if(data.fromId === selectedChatUserId) {
+                document.getElementById('typing-status').innerHTML = `<div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div> <span class="text-xs text-slate-500">typing...</span>`;
+            }
+        });
+
+        socket.on('user-stop-typing', (data) => {
+            document.getElementById('typing-status').innerHTML = '';
+        });
+
+        socket.on('incoming-call', (data) => {
+            selectedChatUserId = data.fromUserId;
+            document.getElementById('call-overlay').classList.remove('hidden');
+            acceptCall();
+        });
+
+        socket.on('receive-offer', (data) => {
+            handleReceiveOffer(data.offer);
+        });
+
+        socket.on('receive-answer', (data) => {
+            if(peerConnection) {
+                peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+            }
+        });
+
+        socket.on('receive-ice-candidate', (data) => {
+            if(peerConnection && data.candidate) {
+                peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+            }
+        });
+
+        socket.on('call-ended', () => {
+            endCall();
+        });
+
+        // ============ AUTH ============
+        function toggleForm() {
+            document.getElementById('login-form').classList.toggle('hidden');
+            document.getElementById('signup-form').classList.toggle('hidden');
+        }
+
+        async function login() {
+            const credential = document.getElementById('login-credential').value.trim();
+            const pass = document.getElementById('login-pass').value.trim();
+            
+            if(!credential || !pass) {
+                alert('Fill all fields');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ credential, password: pass })
+                });
+                const data = await res.json();
+
+                if(data.ok) {
+                    currentUser = data.user.username;
+                    currentUserId = data.user.id;
+                    currentToken = data.token;
+                    localStorage.setItem('token', data.token);
+                    
+                    document.getElementById('auth-screen').classList.add('hidden');
+                    document.getElementById('app-screen').classList.remove('hidden');
+                    document.getElementById('header-user').textContent = currentUser.substring(0, 1);
+                    document.getElementById('profile-bio-edit').value = data.user.bio || '';
+                    
+                    socket.emit('auth', { token: data.token });
+                } else {
+                    alert(data.msg || 'Login failed');
+                }
+            } catch(e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        async function signup() {
+            const user = document.getElementById('signup-user').value.trim();
+            const email = document.getElementById('signup-email').value.trim();
+            const phone = document.getElementById('signup-phone').value.trim();
+            const pass = document.getElementById('signup-pass').value.trim();
+            
+            if(!user || !pass || (!email && !phone)) {
+                alert('Fill username, password, and (email or phone)');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/signup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: user, email: email || null, phone: phone || null, password: pass })
+                });
+                const data = await res.json();
+
+                if(data.ok) {
+                    currentUser = data.user.username;
+                    currentUserId = data.user.id;
+                    currentToken = data.token;
+                    localStorage.setItem('token', data.token);
+                    
+                    document.getElementById('auth-screen').classList.add('hidden');
+                    document.getElementById('app-screen').classList.remove('hidden');
+                    document.getElementById('header-user').textContent = currentUser.substring(0, 1);
+                    
+                    socket.emit('auth', { token: data.token });
+                } else {
+                    alert(data.msg || 'Signup failed');
+                }
+            } catch(e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            location.reload();
+        }
+
+        // ============ NAVIGATION ============
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active', 'bg-sky-100', 'text-sky-600'));
+            
+            document.getElementById(`tab-${tab}`).classList.remove('hidden');
+            document.querySelector(`[data-tab="${tab}"]`).classList.add('active', 'bg-sky-100', 'text-sky-600');
+
+            if(tab === 'profile') renderProfile();
+            if(tab === 'discover') renderDiscover();
+        }
+
+        // ============ SEARCH & DISCOVERY ============
+        document.getElementById('search-users').addEventListener('input', async (e) => {
+            const query = e.target.value.trim();
+            const suggestions = document.getElementById('search-suggestions');
+
+            if(!query || query.length < 2) {
+                suggestions.classList.add('hidden');
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+                const data = await res.json();
+                
+                if(data.results && data.results.length > 0) {
+                    suggestions.innerHTML = data.results.map(u => `
+                        <div onclick="goToUser('${u.id}'); document.getElementById('search-users').value=''; document.getElementById('search-suggestions').classList.add('hidden');" class="search-result-hover p-3 border-b border-slate-100 cursor-pointer">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="font-bold text-sm">${u.username}</span>
+                                <span class="text-xs bg-sky-100 text-sky-600 px-2 py-1 rounded">${u.followers} followers</span>
+                            </div>
+                            <p class="text-xs text-slate-500">${u.bio || 'No bio'}</p>
+                        </div>
+                    `).join('');
+                    suggestions.classList.remove('hidden');
+                } else {
+                    suggestions.classList.add('hidden');
+                }
+            } catch(err) {
+                console.error('Search error:', err);
+            }
+        });
+
+        async function loadDiscoverUsers() {
+            try {
+                const res = await fetch(`/api/discover?userId=${currentUserId}`);
+                const data = await res.json();
+                if(data.users) {
+                    switchTab('discover');
+                }
+            } catch(err) {
+                console.error('Discover error:', err);
+            }
+        }
+
+        function goToUser(userId) {
+            viewUserProfile(userId);
+        }
+
+        // ============ FEED ============
+        function previewImage() {
+            const file = document.getElementById('post-img').files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                postImgData = e.target.result;
+                document.getElementById('img-preview').innerHTML = `<img src="${postImgData}" class="w-full h-40 object-cover rounded-lg">`;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function createPost() {
+            const text = document.getElementById('post-text').value.trim();
+            if(!text && !postImgData) {
+                alert('Write something or add an image');
+                return;
+            }
+
+            socket.emit('create-post', {
+                text: text,
+                image: postImgData
+            });
+
+            document.getElementById('post-text').value = '';
+            document.getElementById('img-preview').innerHTML = '';
+            postImgData = null;
+        }
+
+        function renderFeed() {
+            const list = document.getElementById('posts-list');
+            
+            if(allPosts.length === 0) {
+                list.innerHTML = '<div class="text-center text-slate-400 py-8">No posts yet. Follow users to see their posts!</div>';
+                return;
+            }
+
+            list.innerHTML = allPosts.map(post => {
+                const isGlowed = post.glows.includes(currentUserId);
+                return `
+                    <div class="bg-white rounded-xl md:rounded-2xl p-4 md:p-6 shadow-sm">
+                        <div class="flex items-center gap-3 mb-4 cursor-pointer" onclick="viewUserProfile('${post.userId}')">
+                            <div class="w-10 h-10 bg-sky-200 rounded-lg flex items-center justify-center font-bold text-sky-600">${post.author.substring(0, 1)}</div>
+                            <div class="flex-1">
+                                <p class="font-bold text-sm hover:text-sky-500">${post.author}</p>
+                                <p class="text-xs text-slate-500">${new Date(post.createdAt).toLocaleString()}</p>
+                            </div>
+                            ${post.userId === currentUserId ? `<button onclick="deletePost('${post._id}')" class="text-red-500 hover:text-red-700 font-bold">✕</button>` : ''}
+                        </div>
+                        <p class="text-slate-700 mb-3">${post.text}</p>
+                        ${post.image ? `<div class="relative group"><img src="${post.image}" class="w-full h-48 md:h-64 object-cover rounded-lg mb-4"><button onclick="downloadImage('${post.image}', 'post-image.jpg')" class="absolute top-2 right-2 bg-slate-900 bg-opacity-70 text-white px-3 py-1 rounded-lg text-sm opacity-0 group-hover:opacity-100 transition">⬇️ Download</button></div>` : ''}
+                        <div class="flex gap-4 border-t border-slate-200 pt-3 text-sm">
+                            <button onclick="glowPost('${post._id}')" class="star-btn flex items-center gap-2 font-medium ${isGlowed ? 'glowed text-amber-500' : 'text-slate-500'} hover:text-amber-500 transition">
+                                ⭐ ${post.glows.length}
+                            </button>
+                            <button onclick="openCommentModal('${post._id}')" class="flex items-center gap-2 font-medium text-slate-500 hover:text-blue-500 transition">
+                                💬 ${post.comments.length}
+                            </button>
+                        </div>
+                        ${post.comments.length > 0 ? `
+                            <div class="mt-4 pt-4 border-t border-slate-200 space-y-2">
+                                ${post.comments.map(c => `
+                                    <div class="text-sm bg-slate-50 p-3 rounded-lg">
+                                        <p class="font-bold text-slate-700">${c.author}</p>
+                                        <p class="text-slate-600">${c.text}</p>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function glowPost(postId) {
+            const btn = event.target.closest('.star-btn');
+            btn.classList.add('glowed');
+            socket.emit('glow-post', postId);
+        }
+
+        function deletePost(postId) {
+            if(confirm('Delete this post?')) {
+                socket.emit('delete-post', postId);
+            }
+        }
+
+        function openCommentModal(postId) {
+            currentCommentPostId = postId;
+            document.getElementById('comment-modal').classList.remove('hidden');
+        }
+
+        function closeCommentModal() {
+            document.getElementById('comment-modal').classList.add('hidden');
+        }
+
+        function submitComment() {
+            const text = document.getElementById('comment-text').value.trim();
+            if(!text) {
+                alert('Write a comment');
+                return;
+            }
+
+            socket.emit('add-comment', {
+                postId: currentCommentPostId,
+                text: text
+            });
+
+            document.getElementById('comment-text').value = '';
+            closeCommentModal();
+        }
+
+        // ============ MESSAGES ============
+        function updateUnreadBadge() {
+            const hasUnread = allMessages.some(m => 
+                m.toId === currentUserId && m.read === 0
+            );
+            const badge = document.getElementById('unread-badge');
+            if(hasUnread) {
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        function updateContactsList() {
+            const list = document.getElementById('contacts-list');
+            
+            if(allUsers.length === 0) {
+                list.innerHTML = '<div class="text-center text-slate-400 py-4 text-sm">No users</div>';
+                return;
+            }
+
+            // Sort by unread messages first, then by last message
+            const sortedUsers = allUsers.filter(u => u.id !== currentUserId).sort((a, b) => {
+                const aUnread = hasUnreadMessages(a.id);
+                const bUnread = hasUnreadMessages(b.id);
+                if (aUnread !== bUnread) return aUnread ? -1 : 1;
+                
+                const aMsg = getLastMessage(a.id);
+                const bMsg = getLastMessage(b.id);
+                const aTime = aMsg ? new Date(aMsg.createdAt) : new Date(0);
+                const bTime = bMsg ? new Date(bMsg.createdAt) : new Date(0);
+                return bTime - aTime;
+            });
+
+            list.innerHTML = sortedUsers.map(u => {
+                const lastMsg = getLastMessage(u.id);
+                const isUnread = hasUnreadMessages(u.id);
+                const preview = lastMsg ? (lastMsg.text.length > 30 ? lastMsg.text.substring(0, 30) + '...' : lastMsg.text) : 'No messages';
+                
+                return `
+                    <div onclick="openChat('${u.id}', '${u.username}')" class="p-3 rounded-lg hover:bg-slate-100 cursor-pointer transition ${isUnread ? 'bg-blue-50' : ''}">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-sky-200 rounded-lg flex items-center justify-center font-bold text-sky-600 text-sm">${u.username.substring(0, 1)}</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex justify-between items-center">
+                                    <p class="font-bold text-sm truncate ${isUnread ? 'text-blue-600' : ''}">${u.username}</p>
+                                    ${isUnread ? '<span class="w-2 h-2 bg-red-500 rounded-full"></span>' : ''}
+                                </div>
+                                <p class="text-xs text-slate-500 truncate">${preview}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderContacts() {
+            updateContactsList();
+        }
+
+        document.getElementById('search-input').addEventListener('keyup', (e) => {
+            const query = e.target.value.toLowerCase();
+            const list = document.getElementById('contacts-list');
+            
+            if(!query) {
+                updateContactsList();
+                return;
+            }
+
+            const filtered = allUsers.filter(u => 
+                u.id !== currentUserId && 
+                u.username.toLowerCase().includes(query)
+            );
+
+            list.innerHTML = filtered.map(u => {
+                const lastMsg = getLastMessage(u.id);
+                const isUnread = hasUnreadMessages(u.id);
+                const preview = lastMsg ? (lastMsg.text.length > 30 ? lastMsg.text.substring(0, 30) + '...' : lastMsg.text) : 'No messages';
+                
+                return `
+                    <div onclick="openChat('${u.id}', '${u.username}')" class="p-3 rounded-lg hover:bg-slate-100 cursor-pointer transition ${isUnread ? 'bg-blue-50' : ''}">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-sky-200 rounded-lg flex items-center justify-center font-bold text-sky-600 text-sm">${u.username.substring(0, 1)}</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex justify-between items-center">
+                                    <p class="font-bold text-sm truncate ${isUnread ? 'text-blue-600' : ''}">${u.username}</p>
+                                    ${isUnread ? '<span class="w-2 h-2 bg-red-500 rounded-full"></span>' : ''}
+                                </div>
+                                <p class="text-xs text-slate-500 truncate">${preview}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            if(filtered.length === 0) {
+                list.innerHTML = '<div class="text-center text-slate-400 py-4 text-sm">No users found</div>';
+            }
+        });
+
+        function openChat(userId, userName) {
+            selectedChatUserId = userId;
+            document.getElementById('chat-user-name').textContent = userName;
+            document.getElementById('chat-placeholder').classList.add('hidden');
+            document.getElementById('chat-active').classList.remove('hidden');
+            
+            if(window.innerWidth < 768) {
+                document.getElementById('mobile-chat').classList.remove('hidden');
+                document.getElementById('mobile-chat-name').textContent = userName;
+            }
+            
+            // Mark messages as read
+            allMessages.forEach(m => {
+                if(m.fromId === userId && m.toId === currentUserId && m.read === 0) {
+                    socket.emit('message-seen', m._id || m.id);
+                }
+            });
+            
+            renderChat();
+            updateContactsList();
+            updateUnreadBadge();
+        }
+
+        function closeMobileChat() {
+            document.getElementById('mobile-chat').classList.add('hidden');
+        }
+
+        function renderChat() {
+            const filtered = allMessages.filter(m => 
+                (m.from === currentUserId && m.to === selectedChatUserId) || 
+                (m.fromId === currentUserId && m.toId === selectedChatUserId) ||
+                (m.from === selectedChatUserId && m.to === currentUserId) ||
+                (m.fromId === selectedChatUserId && m.toId === currentUserId)
+            );
+
+            const html = filtered.map(msg => {
+                const isMe = msg.from === currentUserId || msg.fromId === currentUserId;
+                const statusClass = msg.status === 'sent' ? 'msg-sent' : msg.status === 'delivered' ? 'msg-delivered' : 'msg-seen';
+                return `
+                    <div class="flex ${isMe ? 'justify-end' : 'justify-start'}">
+                        <div class="max-w-xs px-4 py-2 rounded-lg ${isMe ? `${statusClass} text-white` : 'bg-slate-100 text-slate-900'}">
+                            ${msg.image ? `<div class="relative group mb-2"><img src="${msg.image}" class="w-40 h-40 object-cover rounded-lg"><button onclick="downloadImage('${msg.image}', 'message-image.jpg')" class="absolute top-1 right-1 bg-slate-900 bg-opacity-70 text-white px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition">⬇️</button></div>` : ''}
+                            ${msg.text}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('messages-box').innerHTML = html || '<div class="text-center text-slate-400">Start a conversation</div>';
+            document.getElementById('mobile-messages-box').innerHTML = html || '<div class="text-center text-slate-400">Start a conversation</div>';
+
+            setTimeout(() => {
+                document.getElementById('messages-box').scrollTop = document.getElementById('messages-box').scrollHeight;
+                document.getElementById('mobile-messages-box').scrollTop = document.getElementById('mobile-messages-box').scrollHeight;
+            }, 50);
+        }
+
+        function handleTyping() {
+            if(selectedChatUserId && document.getElementById('msg-input').value.trim()) {
+                socket.emit('typing', { toId: selectedChatUserId });
+            }
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                socket.emit('stop-typing', { toId: selectedChatUserId });
+            }, 2000);
+        }
+
+        function handleMobileTyping() {
+            if(selectedChatUserId && document.getElementById('mobile-msg-input').value.trim()) {
+                socket.emit('typing', { toId: selectedChatUserId });
+            }
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                socket.emit('stop-typing', { toId: selectedChatUserId });
+            }, 2000);
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('msg-input');
+            const text = input.value.trim();
+            if(!text || !selectedChatUserId) return;
+
+            socket.emit('send-message', {
+                toId: selectedChatUserId,
+                text: text
+            });
+
+            input.value = '';
+            socket.emit('stop-typing', { toId: selectedChatUserId });
+        }
+
+        function sendMobileMessage() {
+            const input = document.getElementById('mobile-msg-input');
+            const text = input.value.trim();
+            if(!text || !selectedChatUserId) return;
+
+            socket.emit('send-message', {
+                toId: selectedChatUserId,
+                text: text
+            });
+
+            input.value = '';
+            socket.emit('stop-typing', { toId: selectedChatUserId });
+        }
+
+        function sendImageMessage() {
+            const file = document.getElementById('msg-img').files[0];
+            if(!file || !selectedChatUserId) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                socket.emit('send-message', {
+                    toId: selectedChatUserId,
+                    text: '📸 Photo',
+                    image: e.target.result
+                });
+            };
+            reader.readAsDataURL(file);
+            document.getElementById('msg-img').value = '';
+        }
+
+        function sendMobileImageMessage() {
+            const file = document.getElementById('mobile-msg-img').files[0];
+            if(!file || !selectedChatUserId) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                socket.emit('send-message', {
+                    toId: selectedChatUserId,
+                    text: '📸 Photo',
+                    image: e.target.result
+                });
+            };
+            reader.readAsDataURL(file);
+            document.getElementById('mobile-msg-img').value = '';
+        }
+
+        // ============ CALLING ============
+        async function startAudioCall() {
+            try {
+                socket.emit('initiate-call', { toUserId: selectedChatUserId, callType: 'audio' });
+                
+                const constraints = { audio: true, video: false };
+                localStream = await navigator.mediaDevices.getUserMedia(constraints);
+                document.getElementById('local-video').srcObject = localStream;
+                document.getElementById('call-overlay').classList.remove('hidden');
+                
+                await createPeerConnection();
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                socket.emit('send-offer', { toUserId: selectedChatUserId, offer });
+            } catch(e) {
+                alert('Audio call error: ' + e.message);
+            }
+        }
+
+        async function startVideoCall() {
+            try {
+                socket.emit('initiate-call', { toUserId: selectedChatUserId, callType: 'video' });
+                
+                const constraints = { audio: true, video: true };
+                localStream = await navigator.mediaDevices.getUserMedia(constraints);
+                document.getElementById('local-video').srcObject = localStream;
+                document.getElementById('call-overlay').classList.remove('hidden');
+                
+                await createPeerConnection();
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                socket.emit('send-offer', { toUserId: selectedChatUserId, offer });
+            } catch(e) {
+                alert('Video call error: ' + e.message);
+            }
+        }
+
+        async function createPeerConnection() {
+            const config = {
+                iceServers: [
+                    { urls: ['stun:stun.l.google.com:19302'] },
+                    { urls: ['stun:stun1.l.google.com:19302'] }
+                ]
+            };
+
+            peerConnection = new RTCPeerConnection(config);
+
+            if(localStream) {
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                });
+            }
+
+            peerConnection.onicecandidate = (event) => {
+                if(event.candidate) {
+                    socket.emit('send-ice-candidate', {
+                        toUserId: selectedChatUserId,
+                        candidate: event.candidate
+                    });
+                }
+            };
+
+            peerConnection.ontrack = (event) => {
+                document.getElementById('remote-video').srcObject = event.streams[0];
+            };
+        }
+
+        async function acceptCall() {
+            try {
+                const constraints = { audio: true, video: true };
+                localStream = await navigator.mediaDevices.getUserMedia(constraints);
+                document.getElementById('local-video').srcObject = localStream;
+                
+                await createPeerConnection();
+            } catch(e) {
+                alert('Accept call error: ' + e.message);
+            }
+        }
+
+        async function handleReceiveOffer(offer) {
+            if(!peerConnection) {
+                await createPeerConnection();
+            }
+            
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+            socket.emit('send-answer', { fromUserId: selectedChatUserId, answer });
+        }
+
+        function toggleMute() {
+            if(localStream) {
+                localStream.getAudioTracks().forEach(track => {
+                    track.enabled = !track.enabled;
+                });
+            }
+        }
+
+        function toggleVideo() {
+            if(localStream) {
+                localStream.getVideoTracks().forEach(track => {
+                    track.enabled = !track.enabled;
+                });
+            }
+        }
+
+        function endCall() {
+            if(localStream) localStream.getTracks().forEach(t => t.stop());
+            if(peerConnection) peerConnection.close();
+            
+            document.getElementById('call-overlay').classList.add('hidden');
+            document.getElementById('local-video').srcObject = null;
+            document.getElementById('remote-video').srcObject = null;
+            
+            socket.emit('end-call', { toUserId: selectedChatUserId });
+        }
+
+        // ============ USER PROFILES ============
+        function viewUserProfile(userId) {
+            if(!userId || userId === 'undefined') return;
+            
+            if(userId === currentUserId) {
+                switchTab('profile');
+                return;
+            }
+
+            viewingUserId = userId;
+            const user = allUsers.find(u => u.id === userId);
+            if(!user) {
+                console.error('User not found:', userId);
+                return;
+            }
+
+            document.getElementById('modal-user-name').textContent = user.username;
+            document.getElementById('modal-user-bio').textContent = user.bio || 'No bio';
+            document.getElementById('modal-followers').textContent = user.followers;
+
+            const userPosts = allPosts.filter(p => p.userId === userId);
+            document.getElementById('modal-posts').textContent = userPosts.length;
+
+            document.getElementById('modal-auraplus-btn').textContent = user.isFollowing ? 'AURA+ (Following)' : 'AURA+';
+            document.getElementById('modal-auraplus-btn').classList.toggle('bg-slate-300 text-slate-700', user.isFollowing);
+
+            document.getElementById('modal-posts-list').innerHTML = userPosts.length > 0 
+                ? userPosts.map(p => `
+                    <div class="bg-slate-100 rounded-lg p-4">
+                        <p class="text-slate-700 mb-2">${p.text}</p>
+                        ${p.image ? `<div class="relative group"><img src="${p.image}" class="w-full h-40 object-cover rounded-lg"><button onclick="downloadImage('${p.image}', 'post-image.jpg')" class="absolute top-1 right-1 bg-slate-900 bg-opacity-70 text-white px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition">⬇️</button></div>` : ''}
+                    </div>
+                `).join('')
+                : '<div class="text-center text-slate-400">No posts yet</div>';
+
+            document.getElementById('profile-modal').classList.remove('hidden');
+        }
+
+        function closeProfileModal() {
+            document.getElementById('profile-modal').classList.add('hidden');
+        }
+
+        function toggleAuraPlus() {
+            socket.emit('toggle-follow', { userId: viewingUserId });
+            setTimeout(() => {
+                viewUserProfile(viewingUserId);
+            }, 100);
+        }
+
+        function toggleAuraPlus2(userId) {
+            socket.emit('toggle-follow', { userId });
+        }
+
+        // ============ PROFILE MANAGEMENT ============
+        async function uploadAvatar() {
+            const file = document.getElementById('avatar-upload').files[0];
+            if(!file) return;
+
+            const formData = new FormData();
+            formData.append('image', file);
+
+            try {
+                const res = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+
+                if(data.ok) {
+                    await fetch('/api/update-profile', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            userId: currentUserId,
+                            avatar: data.url
+                        })
+                    });
+                    alert('Avatar updated!');
+                    location.reload();
+                }
+            } catch(err) {
+                alert('Upload failed: ' + err.message);
+            }
+        }
+
+        async function saveBio() {
+            const bio = document.getElementById('profile-bio-edit').value.trim();
+
+            try {
+                await fetch('/api/update-profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: currentUserId,
+                        bio
+                    })
+                });
+                alert('Bio saved!');
+            } catch(err) {
+                alert('Save failed');
+            }
+        }
+
+        function renderProfile() {
+            const currentUserData = allUsers.find(u => u.id === currentUserId);
+            if(!currentUserData) return;
+
+            document.getElementById('profile-name').textContent = currentUserData.username;
+            document.getElementById('profile-bio-edit').value = currentUserData.bio || '';
+
+            if(currentUserData.avatar) {
+                document.getElementById('profile-avatar-display').innerHTML = `<img src="${currentUserData.avatar}" class="w-full h-full object-cover">`;
+            }
+
+            const userPosts = allPosts.filter(p => p.userId === currentUserId);
+            document.getElementById('profile-posts').textContent = userPosts.length;
+            document.getElementById('profile-followers').textContent = currentUserData.followers;
+
+            const postsHtml = userPosts.map(p => `
+                <div class="bg-white rounded-xl p-4 shadow-sm">
+                    <p class="text-slate-700">${p.text}</p>
+                    ${p.image ? `<div class="relative group"><img src="${p.image}" class="w-full h-40 object-cover rounded-lg mt-3"><button onclick="downloadImage('${p.image}', 'post-image.jpg')" class="absolute top-2 right-2 bg-slate-900 bg-opacity-70 text-white px-3 py-1 rounded-lg text-sm opacity-0 group-hover:opacity-100 transition">⬇️ Download</button></div>` : ''}
+                </div>
+            `).join('');
+
+            document.getElementById('profile-posts-list').innerHTML = postsHtml || '<div class="text-center text-slate-400">No posts yet</div>';
+        }
+
+        // ============ DISCOVER ============
+        function renderDiscover() {
+            const grid = document.getElementById('discover-grid');
+            const users = allUsers.filter(u => u.id !== currentUserId);
+
+            if(users.length === 0) {
+                grid.innerHTML = '<div class="text-center text-slate-400">No users</div>';
+                return;
+            }
+
+            grid.innerHTML = users.map(u => `
+                <div class="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition">
+                    <div class="w-16 h-16 bg-sky-200 rounded-full mx-auto mb-3 flex items-center justify-center font-bold text-xl text-sky-600 cursor-pointer overflow-hidden" onclick="viewUserProfile('${u.id}')">
+                        ${u.avatar ? `<img src="${u.avatar}" class="w-full h-full object-cover">` : u.username.substring(0, 1)}
+                    </div>
+                    <h3 class="font-bold text-center mb-1 cursor-pointer hover:text-sky-500" onclick="viewUserProfile('${u.id}')">${u.username}</h3>
+                    <p class="text-xs text-slate-500 text-center mb-2">${u.followers} followers</p>
+                    <p class="text-sm text-slate-600 text-center mb-4 line-clamp-2">${u.bio || 'No bio'}</p>
+                    <button onclick="toggleAuraPlus2('${u.id}')" class="w-full ${u.isFollowing ? 'bg-slate-200 text-slate-600' : 'bg-sky-500 text-white'} py-2 rounded-lg font-bold hover:opacity-90 transition">
+                        AURA+
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        // ============ INIT ============
+        window.addEventListener('load', () => {
+            const token = localStorage.getItem('token');
+            if(token) {
+                try {
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+                    currentUserId = payload.id;
+                    currentUser = payload.username;
+                    currentToken = token;
+                    
+                    document.getElementById('auth-screen').classList.add('hidden');
+                    document.getElementById('app-screen').classList.remove('hidden');
+                    document.getElementById('header-user').textContent = currentUser.substring(0, 1);
+                    
+                    socket.emit('auth', { token });
+                } catch(e) {
+                    console.error('Invalid token');
+                }
+            }
+        });
+    </script>
+</body>
+</html>

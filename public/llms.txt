@@ -1,0 +1,10 @@
+# Socialite
+
+> Socialite is a modern social network for sharing posts, stories, photos, real-time chat and video calls with friends and creators.
+
+Socialite combines a familiar feed of posts and stories with built-in messaging and video calling, so people can both broadcast to their community and have private conversations in one place.
+
+## Pages
+
+- [Home feed](/): Public feed of posts and stories from the community.
+- [Sign in or sign up](/auth): Create an account or log in to start posting and chatting.

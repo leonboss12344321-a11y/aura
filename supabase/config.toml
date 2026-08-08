@@ -1,0 +1,10 @@
+project_id = "vasculblzhwbffregwoh"
+
+[functions.submit-account-request]
+verify_jwt = true
+
+[functions.review-account-request]
+verify_jwt = true
+
+[functions.admin-delete-user]
+verify_jwt = true

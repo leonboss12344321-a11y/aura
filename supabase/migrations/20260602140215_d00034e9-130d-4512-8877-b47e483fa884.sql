@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.bump_post_comments_count() FROM anon, authenticated, public;
